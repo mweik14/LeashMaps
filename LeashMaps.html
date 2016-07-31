@@ -27,6 +27,17 @@
 		id: 'mapbox.light'
 	}).addTo(map);
 	
+	function onEachFeature(feature, layer) {
+		var popupContent = feature.properties.Name + " (Owned by: " + feature.properties.OWNER + "); Type: " + feature.properties.TrailType + 
+			"; Bicycles: " + feature.properties.Bicycles + ".";
+		//Verifies if each feature has properties for popup content 	
+		if (feature.properties && feature.properties.popupContent) {
+			popupContent += feature.properties.popupContent;
+		}
+
+		layer.bindPopup(popupContent);
+	}
+	
 	//adds the data from a GeoJSON file of OSMP trails to the map and applies a style based on a condition
     	L.geoJson(osmp_Trails,{style: function(feature) {
 	//changes the color of trail depending on having access to Bicycles or not.
@@ -34,8 +45,9 @@
 			case 'Yes': return {color: "#0000ff"};
 			case 'No': return {color: "#ff0000"};
 			}
-		}
-	}).addTo(map);	
+		}, 
+		onEachFeature: onEachFeature
+	}).addTo(map);		
 	</script>
 </body>
 </html>
