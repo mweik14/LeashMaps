@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!--Created by: Matthew Weik; Date Started: 7/28/2016'
+	The final goals of this leaflet mapplication is to identify the trails of boulder, those considered OSMP trails, and those trails
+	with off-leash access for dogs.
+	Update (7/28/2016) - Currently displays the OSMP labeled trails with blue trails representing those with bicycle access
+	red trails have no bicycle access.-->
+
+<html>
+<head>
+	<title>LeashMaps: Boulder OSMP Lands</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src="OSMPTrails.js" type="text/javascript">// local reference of trail data</script>
+	<link rel="stylesheet" href="https://npmcdn.com/leaflet@1.0.0-rc.2/dist/leaflet.css" />
+</head>
+<body>
+	<div id="map" style="width: 800px; height: 900px"></div>
+	<script src="https://npmcdn.com/leaflet@1.0.0-rc.2/dist/leaflet.js"></script>
+	<script>	
+	var map = L.map('map').setView([40.025477, -105.254056], 12.2);  
+	//Basic grey mapbox tile layer for background
+	L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/light-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1Ijoid2Vpa20xNCIsImEiOiJjaXEzMnU5YzAwMThoZnNubm8zN2Fkd3ZyIn0.IYNHwU_JHC6J8Cm1lWRyvg', {
+		maxZoom: 18,
+		attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+			'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+			'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+		id: 'mapbox.light'
+	}).addTo(map);
+	
+	//adds the data from a GeoJSON file of OSMP trails to the map and applies a style based on a condition
+    L.geoJson(osmp_Trails,{style: function(feature) {
+	//changes the color of trail depending on having access to Bicycles or not.
+		switch (feature.properties.Bicycles) {
+			case 'Yes': return {color: "#0000ff"};
+			case 'No': return {color: "#ff0000"};
+			}
+		}
+	}).addTo(map);	
+	</script>
+</body>
+</html>
