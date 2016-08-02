@@ -3,7 +3,7 @@
 	The final goals of this leaflet mapplication is to identify the trails of boulder, those considered OSMP trails, and those trails
 	with off-leash access for dogs.
 	Update (7/30/2016) - Currently displays the OSMP labeled trails with blue trails representing those with bicycle access
-	red trails have no bicycle access.  Available properties are displayed when trails are selected.-->
+	red trails have no bicycle access.-->
 
 <html>
 <head>
@@ -36,6 +36,7 @@
 		id: 'mapbox.light'
 	}).addTo(map);
 	
+<<<<<<< HEAD
 	function onEachFeature(feature, layer) {
 		var popupContent = "Name: " + feature.properties.Name + " (Owned by " + feature.properties.OWNER + ")" + "<br>Type: " + feature.properties.TrailType
 			+ "<br>Bicycles: " + feature.properties.Bicycles;
@@ -47,6 +48,8 @@
 		layer.bindPopup(popupContent);
 	}
 	
+=======
+>>>>>>> parent of 2194988... Copy (#3)
 	//adds the data from a GeoJSON file of OSMP trails to the map and applies a style based on a condition
     	L.geoJson(osmp_Trails,{style: function(feature) {
 	//changes the color of trail depending on having access to Bicycles or not.
@@ -54,9 +57,8 @@
 			case 'Yes': return {color: "#228B22"};
 			case 'No': return {color: "#FF8C00"};
 			}
-		}, 
-		onEachFeature: onEachFeature
-	}).addTo(map);		
+		}
+	}).addTo(map);	
 	</script>
 </body>
 </html>
