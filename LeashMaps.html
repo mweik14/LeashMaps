@@ -3,8 +3,10 @@
 	The final goals of this leaflet mapplication is to identify the trails of boulder, those considered OSMP trails, and those trails
 	with off-leash access for dogs.
 	Update (7/30/2016) - Currently displays the OSMP labeled trails with green trails representing those with bicycle access
-	orange trails have no bicycle access.  Available properties are displayed when trails are selected.-->
-
+	orange trails have no bicycle access.  Available properties are displayed when trails are selected.
+	Update (8/2/2016) - Added click to zoom to selected feature making it interactive, now displays choropleth map of trails colored by trail length.  Pop-up content
+	now includes trail length in miles.  Legend exists with legend title and units.  need to look into changing legend and style based on desired attribute, more
+	customization will come in time.-->
 <html>
 <head>
 	<title>LeashMaps: Boulder OSMP Trails</title>
@@ -13,12 +15,35 @@
 	<script src="OSMPTrails.js" type="text/javascript">// local reference of trail data</script>
 	<link rel="stylesheet" href="https://npmcdn.com/leaflet@1.0.0-rc.2/dist/leaflet.css" />
 	<style>
+		.info {
+			padding: 6px 8px;
+			font: 14px/16px Arial, Helvetica, sans-serif;
+			background: white;
+			background: rgba(255,255,255,0.8);
+			box-shadow: 0 0 15px rgba(0,0,0,0.2);
+			border-radius: 5px;
+		}
+		.info h4 {
+			margin: 0 0 5px;
+			color: #777;
+		}
 		body {
 			padding: 0;
 			margin: 0;
 		}
 		html, body, #map {
 			height: 100%;
+		}
+				.legend {
+			line-height: 18px;
+			color: #555;
+		}
+		.legend i {
+			width: 18px;
+			height: 18px;
+			float: left;
+			margin-right: 8px;
+			opacity: 0.7;
 		}
 	</style>
 </head>
@@ -35,28 +60,76 @@
 			'Imagery © <a href="http://mapbox.com">Mapbox</a>',
 		id: 'mapbox.light'
 	}).addTo(map);
+	var osmpTrailsGjson;
 	
+	function zoomToFeature(e) {
+		map.fitBounds(e.target.getBounds());
+	}
+	
+	function getColor(d) {
+		return d > 2.0 ? '#800026' :
+			   d > 1.5 ? '#E31A1C' :
+			   d > 1.0 ? '#FD8D3C' :
+			   d > 0.5 ? '#FED976' :
+						 '#FFEDA0';
+	}
+
+	function style(feature) {
+		return {
+			color: getColor(feature.properties.Length_mi),
+			weight: 3,
+			opacity: 1
+		};
+	}
 	function onEachFeature(feature, layer) {
 		var popupContent = "Name: " + feature.properties.Name + " (Owned by " + feature.properties.OWNER + ")" + "<br>Type: " + feature.properties.TrailType
-			+ "<br>Bicycles: " + feature.properties.Bicycles;
+			+ "<br>Bicycles: " + feature.properties.Bicycles + "<br><b>Trail Length: </b>" + feature.properties.Length_mi + " mi.";
 		//Verifies if each feature has properties for popup content 	
 		if (feature.properties && feature.properties.popupContent) {
 			popupContent += feature.properties.popupContent;
 		}
 
 		layer.bindPopup(popupContent);
+		layer.on({click: zoomToFeature});
 	}
 	
-	//adds the data from a GeoJSON file of OSMP trails to the map and applies a style based on a condition
-    	L.geoJson(osmp_Trails,{style: function(feature) {
-	//changes the color of trail depending on having access to Bicycles or not.
-		switch (feature.properties.Bicycles) {
-			case 'Yes': return {color: "#228B22"};
-			case 'No': return {color: "#FF8C00"};
-			}
-		}, 
+	///adds the data from a GeoJSON file of OSMP trails to the map and applies a style based on a condition
+    //L.geoJson(osmp_Trails,{style: function(feature) {
+	///changes the color of trail depending on having access to Bicycles or not.
+	//	switch (feature.properties.Bicycles) {
+	//		case 'Yes': return {color: "#228B22"};
+	//		case 'No': return {color: "#FF8C00"};
+	//		}
+	//	}, 
+	//	onEachFeature: onEachFeature
+	//}).addTo(map);	
+		
+	osmpTrailsGjson = L.geoJson(osmp_Trails,{
+		style: style,
 		onEachFeature: onEachFeature
-	}).addTo(map);		
+	}).addTo(map);	
+	
+	var legend = L.control({position: 'bottomright'});
+	legend.onAdd = function (map) {
+		var div = L.DomUtil.create('div', 'info legend'),
+			grades = [0.00, 0.50, 1.00, 1.50, 2.00],
+			labels = ['<strong>Trail Length (miles)</strong>'],
+			from, to;
+
+		// loop through the length intervals to assign matching color square
+		for (var i = grades.length - 1; i >= 0; i--) {
+			from = grades[i];
+			to = grades[i + 1];
+
+			labels.push(
+				'<i style="background:' + getColor(from + 0.01) + '"></i> ' +
+				(from ? from + 0.01 : 0.00) + (to ? ' &ndash; ' + to : ' +'));
+		}
+			div.innerHTML = labels.join('<br>');
+			return div;
+		};
+		
+	legend.addTo(map);
 	</script>
 </body>
 </html>
