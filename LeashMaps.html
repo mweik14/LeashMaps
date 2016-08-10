@@ -1,18 +1,23 @@
 <!DOCTYPE html>
 <!--Created by: Matthew Weik; Date Started: 7/28/2016'
 	The final goals of this leaflet mapplication is to identify the trails of boulder, those considered OSMP trails, and those trails
-	with off-leash access for dogs.
+		with off-leash access for dogs.
 	Update (7/30/2016) - Currently displays the OSMP labeled trails with green trails representing those with bicycle access
-	orange trails have no bicycle access.  Available properties are displayed when trails are selected.
+		orange trails have no bicycle access.  Available properties are displayed when trails are selected.
 	Update (8/2/2016) - Added click to zoom to selected feature making it interactive, now displays choropleth map of trails colored by trail length.  Pop-up content
-	now includes trail length in miles.  Legend exists with legend title and units.  need to look into changing legend and style based on desired attribute, more
-	customization will come in time.-->
+		now includes trail length in miles.  Legend exists with legend title and units.  need to look into changing legend and style based on desired attribute, more
+		customization will come in time.
+	Update(8/9/2016) - Major update, many features added and fixes at one time:  The grayscale basemap can be switched to a satellite view through the new layer control.  
+		GeoJson Data layers are can be added and removed (legends add and remove accordingly).  The Boulder CO city boundary was added.  minor organizational changes,
+		more robust comments.
+	-->
 <html>
 <head>
 	<title>LeashMaps: Boulder OSMP Trails</title>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" >
 	<script src="OSMPTrails.js" type="text/javascript">// local reference of trail data</script>
+	<script src="BoulderCityLimits.js" type="text/javascript">// local reference of city boundary data</script>
 	<link rel="stylesheet" href="https://npmcdn.com/leaflet@1.0.0-rc.2/dist/leaflet.css" />
 	<style>
 		.info {
@@ -50,37 +55,86 @@
 <body>
 	<div id="map"></div>
 	<script src="https://npmcdn.com/leaflet@1.0.0-rc.2/dist/leaflet.js"></script>
-	<script>	
-	var map = L.map('map').setView([40.025477, -105.254056], 12.2);  
-	//Basic grey mapbox tile layer for background
-	L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/light-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1Ijoid2Vpa20xNCIsImEiOiJjaXEzMnU5YzAwMThoZnNubm8zN2Fkd3ZyIn0.IYNHwU_JHC6J8Cm1lWRyvg', {
-		maxZoom: 18,
-		attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
-			'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-			'Imagery © <a href="http://mapbox.com">Mapbox</a>',
-		id: 'mapbox.light'
-	}).addTo(map);
-	var osmpTrailsGjson;
+	<script>
+	//Define new layer groups to add to map as overlays
+	var trailBikeLayer = new L.layerGroup();
+	var trailLengthLayer = new L.layerGroup();
+	var boulderCitLimLayer = new L.layerGroup();
 	
+	//Bring in Tiles/styles from Mapbox.
+		//The attribution to proper data sources and the url for the Greyscale basemap and satellite basemap.
+	var mbAttr = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+			'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+			'Imagery © <a href="http://mapbox.com">Mapbox</a>,' +
+			'Satellite Imagery © <a href="http://www.digitalglobe.com/">DigitalGlobe</a>',
+		mbUrl = 'https://api.mapbox.com/styles/v1/mapbox/light-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1Ijoid2Vpa20xNCIsImEiOiJjaXEzMnU5YzAwMThoZnNubm8zN2Fkd3ZyIn0.IYNHwU_JHC6J8Cm1lWRyvg',
+		mbUrlSat = 'https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1Ijoid2Vpa20xNCIsImEiOiJjaXEzMnU5YzAwMThoZnNubm8zN2Fkd3ZyIn0.IYNHwU_JHC6J8Cm1lWRyvg';
+	
+		//define tile/styles as tileLayers in Leaflet:
+	var grayScale = L.tileLayer(mbUrl, {id: 'mapbox.light', attribution: mbAttr});
+	var satStreetBasemap = L.tileLayer(mbUrlSat,{attribution: mbAttr});
+	
+	//Map layer, with the center focus, zoom level, and default layers added at start.
+	var map = L.map('map', {
+		center: [40.025477, -105.254056],
+		zoom: 12.2,
+		layers: [grayScale, boulderCitLimLayer, trailBikeLayer]
+	});	
+	
+	//Variables for data used in map layers. !!define empty and load data in later in order for zoom to feature to work!!
+	var trailBike;	
+	var trailLength;
+	var boulderCitLim;
+	
+	//Functions for visualizing data on map, defines styles for added GeoJSON layers.
+		//focuses the view on a trail selected by the user.  !still needs an option for returning to original zoom.
 	function zoomToFeature(e) {
 		map.fitBounds(e.target.getBounds());
 	}
 	
-	function getColor(d) {
+	//applies color (orange to red gradient) to OSMP trail data by depending on the trail length(miles)
+	function trailColor(d) {
 		return d > 2.0 ? '#800026' :
 			   d > 1.5 ? '#E31A1C' :
 			   d > 1.0 ? '#FD8D3C' :
 			   d > 0.5 ? '#FED976' :
 						 '#FFEDA0';
 	}
-
+	
+	//Applies a color to OSMP trail data depending on bike allowance (specifically for legend).!substitute with or remove in place of Switch Case
+	function bikeColor(d) {
+		return d === 'Yes' ? '#228B22' :
+						 '#FF8C00';
+	}
+	
+	//Returns a color of trail based on length, sets the width and opacity.
 	function style(feature) {
 		return {
-			color: getColor(feature.properties.Length_mi),
+			color: trailColor(feature.properties.Length_mi),
+			weight: 2,
+			opacity: 1
+		};
+	}
+	
+	//Returns color Green or Orange depending on bike allowance.
+	function bikeStyle(feature) {
+		return {
+			color: bikeColor(feature.properties.Bicycles),
 			weight: 3,
 			opacity: 1
 		};
 	}
+		
+	//style for Boulder City Limits.
+	function boundStyle(feature){
+		return {
+			color: '#008B8B',
+			weight: 1.5,
+			fillOpacity: 0
+		};
+	}
+	
+	//Used to define interactions with individual features: zoom to feature, pop-ups with trail data displayed,...,...,.
 	function onEachFeature(feature, layer) {
 		var popupContent = "Name: " + feature.properties.Name + " (Owned by " + feature.properties.OWNER + ")" + "<br>Type: " + feature.properties.TrailType
 			+ "<br>Bicycles: " + feature.properties.Bicycles + "<br><b>Trail Length: </b>" + feature.properties.Length_mi + " mi.";
@@ -88,48 +142,101 @@
 		if (feature.properties && feature.properties.popupContent) {
 			popupContent += feature.properties.popupContent;
 		}
-
 		layer.bindPopup(popupContent);
 		layer.on({click: zoomToFeature});
 	}
 	
-	///adds the data from a GeoJSON file of OSMP trails to the map and applies a style based on a condition
-    //L.geoJson(osmp_Trails,{style: function(feature) {
-	///changes the color of trail depending on having access to Bicycles or not.
-	//	switch (feature.properties.Bicycles) {
-	//		case 'Yes': return {color: "#228B22"};
-	//		case 'No': return {color: "#FF8C00"};
-	//		}
-	//	}, 
-	//	onEachFeature: onEachFeature
-	//}).addTo(map);	
-		
-	osmpTrailsGjson = L.geoJson(osmp_Trails,{
-		style: style,
-		onEachFeature: onEachFeature
-	}).addTo(map);	
+	//GeoJSON data for desired map layers 
+	boulderCitLim = L.geoJson(boulder_CitLim,{
+			style: boundStyle,
+	}).addTo(boulderCitLimLayer);
 	
-	var legend = L.control({position: 'bottomright'});
-	legend.onAdd = function (map) {
+	trailBike = L.geoJson(osmp_Trails,{
+			style: bikeStyle,
+			onEachFeature: onEachFeature
+	}).addTo(trailBikeLayer);
+	
+	trailLength = L.geoJson(osmp_Trails,{
+			style: style,
+			onEachFeature: onEachFeature
+	}).addTo(trailLengthLayer);
+	
+	
+	//combines the tilelayers into basemaps and GeoJSON data layers into overlays
+	var baseMaps = {
+    "Grayscale": grayScale,
+	"Satellite View": satStreetBasemap
+	};
+
+	var overlayMaps = {
+	"Boulder City Boundary": boulderCitLimLayer,
+	"Bikes": trailBikeLayer,
+	"Trail Length": trailLengthLayer
+	};
+	
+	//adds the tile layers to the map
+	L.control.layers(baseMaps, overlayMaps).addTo(map);
+	
+	//Create legend, position, and style 
+	var bikeLegend = L.control({position: 'bottomright'});
+	bikeLegend.onAdd = function(map) {
+		var div = L.DomUtil.create('div', 'info legend'),
+			grades = ['Yes', 'No'],
+			labels = ['<strong>Bikes Allowed</strong>'];
+		// loops through the bike allowance options and assigns a matching color square.
+		for (var i = 0; i < grades.length; i++) {
+			from = grades[i];
+			labels.push(
+				'<i style="background:' + bikeColor(from) + '"></i> ' +
+				from);
+		}
+			div.innerHTML = labels.join('<br>');
+			return div;
+		};
+	
+	var trailLegend = L.control({position: 'bottomright'});
+	trailLegend.onAdd = function (map) {
 		var div = L.DomUtil.create('div', 'info legend'),
 			grades = [0.00, 0.50, 1.00, 1.50, 2.00],
 			labels = ['<strong>Trail Length (miles)</strong>'],
 			from, to;
-
-		// loop through the length intervals to assign matching color square
+		// loops through the length intervals to assign a matching color square.
 		for (var i = grades.length - 1; i >= 0; i--) {
 			from = grades[i];
 			to = grades[i + 1];
-
 			labels.push(
-				'<i style="background:' + getColor(from + 0.01) + '"></i> ' +
+				'<i style="background:' + trailColor(from + 0.01) + '"></i> ' +
 				(from ? from + 0.01 : 0.00) + (to ? ' &ndash; ' + to : ' +'));
 		}
 			div.innerHTML = labels.join('<br>');
 			return div;
 		};
-		
-	legend.addTo(map);
+	
+	//adds an initial legend to the map.
+	bikeLegend.addTo(map);
+	//stores the current legend to update upon layer selection.
+	currentLegend = bikeLegend;
+
+	//add the legend of an overlay layer when selected.
+	map.on('overlayadd', function (eventLayer) {
+		if (eventLayer.name === "Bikes") {
+			currentLegend = bikeLegend;
+			bikeLegend.addTo(map);
+		}
+		else {
+			currentLegend = trailLegend;
+			trailLegend.addTo(map);
+		}
+	})
+	 //removes the legend of a deselected overlay layer.
+	map.on('overlayremove', function (eventLayer) {
+		if (eventLayer.name === "Bikes") {
+			map.removeControl(bikeLegend);			
+		}
+		else {
+			map.removeControl(trailLegend);
+		}
+	})
 	</script>
 </body>
 </html>
