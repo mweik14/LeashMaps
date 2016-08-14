@@ -10,6 +10,7 @@
 	Update(8/9/2016) - Major update, many features added and fixes at one time:  The grayscale basemap can be switched to a satellite view through the new layer control.  
 		GeoJson Data layers are can be added and removed (legends add and remove accordingly).  The Boulder CO city boundary was added.  minor organizational changes,
 		more robust comments.
+	Update (8/13/2016) - Added scalebar, max boundaries, and max zoom away distance.
 	-->
 <html>
 <head>
@@ -70,15 +71,27 @@
 		mbUrl = 'https://api.mapbox.com/styles/v1/mapbox/light-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1Ijoid2Vpa20xNCIsImEiOiJjaXEzMnU5YzAwMThoZnNubm8zN2Fkd3ZyIn0.IYNHwU_JHC6J8Cm1lWRyvg',
 		mbUrlSat = 'https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1Ijoid2Vpa20xNCIsImEiOiJjaXEzMnU5YzAwMThoZnNubm8zN2Fkd3ZyIn0.IYNHwU_JHC6J8Cm1lWRyvg';
 	
-		//define tile/styles as tileLayers in Leaflet:
-	var grayScale = L.tileLayer(mbUrl, {id: 'mapbox.light', attribution: mbAttr});
-	var satStreetBasemap = L.tileLayer(mbUrlSat,{attribution: mbAttr});
+	//Set boundaries for panning area
+	var southWest = L.latLng(39.727688, -105.564565),
+    northEast = L.latLng(40.224720, -105.018731),
+    tilebounds = L.latLngBounds(southWest, northEast);	
 	
+	//define tile/styles as tileLayers in Leaflet:
+	var grayScale = L.tileLayer(mbUrl, {id: 'mapbox.light', attribution: mbAttr, bounds: tilebounds});
+	var satStreetBasemap = L.tileLayer(mbUrlSat,{attribution: mbAttr, bounds: tilebounds});
+		
 	//Map layer, with the center focus, zoom level, and default layers added at start.
 	var map = L.map('map', {
 		center: [40.025477, -105.254056],
 		zoom: 12.2,
-		layers: [grayScale, boulderCitLimLayer, trailBikeLayer]
+		layers: [grayScale, boulderCitLimLayer, trailBikeLayer],
+		minZoom: 11,
+		maxBounds: [
+        //south west
+        [39.727688, -105.564565],
+        //north east
+        [40.224720, -105.018731]
+        ]
 	});	
 	
 	//Variables for data used in map layers. !!define empty and load data in later in order for zoom to feature to work!!
@@ -228,7 +241,8 @@
 			trailLegend.addTo(map);
 		}
 	})
-	 //removes the legend of a deselected overlay layer.
+	
+	//removes the legend of a deselected overlay layer.
 	map.on('overlayremove', function (eventLayer) {
 		if (eventLayer.name === "Bikes") {
 			map.removeControl(bikeLegend);			
@@ -237,6 +251,9 @@
 			map.removeControl(trailLegend);
 		}
 	})
+	
+	//Scale bar control
+	L.control.scale({position: 'bottomleft', maxWidth: 250}).addTo(map);	
 	</script>
 </body>
 </html>
