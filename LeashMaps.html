@@ -11,6 +11,7 @@
 		GeoJson Data layers are can be added and removed (legends add and remove accordingly).  The Boulder CO city boundary was added.  minor organizational changes,
 		more robust comments.
 	Update (8/13/2016) - Added scalebar, max boundaries, and max zoom away distance.
+	Update (9/4/2016) - Highlight on mouse over for OSMP trail GeoJSON Layers (bike allowance and trail length) and altered colors for trail length.
 	-->
 <html>
 <head>
@@ -62,6 +63,12 @@
 	var trailLengthLayer = new L.layerGroup();
 	var boulderCitLimLayer = new L.layerGroup();
 	
+	//Variables for data used in map layers. !!define empty and load data in later in order for zoom to feature to work!!
+	var trailBike;	
+	var trailLength;
+	var boulderCitLim;
+	var GeoJsonHighlight;
+	
 	//Bring in Tiles/styles from Mapbox.
 		//The attribution to proper data sources and the url for the Greyscale basemap and satellite basemap.
 	var mbAttr = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
@@ -73,8 +80,8 @@
 	
 	//Set boundaries for panning area
 	var southWest = L.latLng(39.727688, -105.564565),
-    northEast = L.latLng(40.224720, -105.018731),
-    tilebounds = L.latLngBounds(southWest, northEast);	
+		northEast = L.latLng(40.224720, -105.018731),
+    		tilebounds = L.latLngBounds(southWest, northEast);	
 	
 	//define tile/styles as tileLayers in Leaflet:
 	var grayScale = L.tileLayer(mbUrl, {id: 'mapbox.light', attribution: mbAttr, bounds: tilebounds});
@@ -87,17 +94,11 @@
 		layers: [grayScale, boulderCitLimLayer, trailBikeLayer],
 		minZoom: 11,
 		maxBounds: [
-        //south west
-        [39.727688, -105.564565],
-        //north east
-        [40.224720, -105.018731]
-        ]
-	});	
-	
-	//Variables for data used in map layers. !!define empty and load data in later in order for zoom to feature to work!!
-	var trailBike;	
-	var trailLength;
-	var boulderCitLim;
+		        //south west
+		        [39.727688, -105.564565],
+		        //north east
+		        [40.224720, -105.018731]
+	]});
 	
 	//Functions for visualizing data on map, defines styles for added GeoJSON layers.
 		//focuses the view on a trail selected by the user.  !still needs an option for returning to original zoom.
@@ -105,27 +106,25 @@
 		map.fitBounds(e.target.getBounds());
 	}
 	
-	//applies color (orange to red gradient) to OSMP trail data by depending on the trail length(miles)
+	//applies color (Green to red) to OSMP trail data by depending on the trail length(miles)
 	function trailColor(d) {
-		return d > 2.0 ? '#800026' :
-			   d > 1.5 ? '#E31A1C' :
-			   d > 1.0 ? '#FD8D3C' :
-			   d > 0.5 ? '#FED976' :
-						 '#FFEDA0';
+		return d > 2.0 ? '#f46d43' :
+			d > 1.5 ? '#fdae61' :
+			d > 1.0 ? '#fee08b' :
+			d > 0.5 ? '#d9ef8b' :
+			'#a6d96a' ;
 	}
 	
-	//Applies a color to OSMP trail data depending on bike allowance (specifically for legend).!substitute with or remove in place of Switch Case
+	//Applies a color to OSMP trail data depending on bike allowance.
 	function bikeColor(d) {
-		return d === 'Yes' ? '#228B22' :
-						 '#FF8C00';
+		return d === 'Yes' ? '#228B22' : '#FF8C00';
 	}
 	
 	//Returns a color of trail based on length, sets the width and opacity.
 	function style(feature) {
 		return {
 			color: trailColor(feature.properties.Length_mi),
-			weight: 2,
-			opacity: 1
+			weight: 2.5
 		};
 	}
 	
@@ -133,8 +132,7 @@
 	function bikeStyle(feature) {
 		return {
 			color: bikeColor(feature.properties.Bicycles),
-			weight: 3,
-			opacity: 1
+			weight: 2.5
 		};
 	}
 		
@@ -147,6 +145,34 @@
 		};
 	}
 	
+	//style for highlighting feature on mouseover		
+	function highlightFeature(e) {
+		var layer = e.target;
+
+		layer.setStyle({
+			weight: 7,
+			color: '#00FFFF',
+			opacity: 0.4
+		});
+
+		if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+			layer.bringToFront();
+		}
+	}
+
+	//reset highlight on mouseout
+		function resetHighlight(e) {
+		if (GeoJsonHighlight == trailBike){
+		trailBike.resetStyle(e.target);
+		}
+		else if (GeoJsonHighlight == trailLength){
+		trailLength.resetStyle(e.target);
+		}
+		else {
+		trailBike.resetStyle(e.target);
+		}
+	}
+	
 	//Used to define interactions with individual features: zoom to feature, pop-ups with trail data displayed,...,...,.
 	function onEachFeature(feature, layer) {
 		var popupContent = "Name: " + feature.properties.Name + " (Owned by " + feature.properties.OWNER + ")" + "<br>Type: " + feature.properties.TrailType
@@ -156,7 +182,10 @@
 			popupContent += feature.properties.popupContent;
 		}
 		layer.bindPopup(popupContent);
-		layer.on({click: zoomToFeature});
+		layer.on({
+			mouseover: highlightFeature,
+			mouseout: resetHighlight,
+			click: zoomToFeature});
 	}
 	
 	//GeoJSON data for desired map layers 
@@ -174,17 +203,16 @@
 			onEachFeature: onEachFeature
 	}).addTo(trailLengthLayer);
 	
-	
 	//combines the tilelayers into basemaps and GeoJSON data layers into overlays
 	var baseMaps = {
-    "Grayscale": grayScale,
-	"Satellite View": satStreetBasemap
+    		"Grayscale": grayScale,
+		"Satellite View": satStreetBasemap
 	};
 
 	var overlayMaps = {
-	"Boulder City Boundary": boulderCitLimLayer,
-	"Bikes": trailBikeLayer,
-	"Trail Length": trailLengthLayer
+		"Boulder City Boundary": boulderCitLimLayer,
+		"Bikes": trailBikeLayer,
+		"Trail Length": trailLengthLayer
 	};
 	
 	//adds the tile layers to the map
@@ -235,12 +263,13 @@
 		if (eventLayer.name === "Bikes") {
 			currentLegend = bikeLegend;
 			bikeLegend.addTo(map);
+			GeoJsonHighlight = trailBike;
 		}
 		else {
 			currentLegend = trailLegend;
 			trailLegend.addTo(map);
-		}
-	})
+			GeoJsonHighlight = trailLength;
+	}})
 	
 	//removes the legend of a deselected overlay layer.
 	map.on('overlayremove', function (eventLayer) {
@@ -249,8 +278,7 @@
 		}
 		else {
 			map.removeControl(trailLegend);
-		}
-	})
+		}})
 	
 	//Scale bar control
 	L.control.scale({position: 'bottomleft', maxWidth: 250}).addTo(map);	
